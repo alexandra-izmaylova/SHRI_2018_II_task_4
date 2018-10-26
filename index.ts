@@ -31,41 +31,54 @@ interface Event {
 	type: string;
 }
 
-const sendEvents = (
+interface Events {
+	events: Array<Event>;
+}
+
+const readEvents = () => {
+	return new Promise<Events>((resolve, reject) => {
+		fs.readFile('events.json', 'utf8', (err: Error, data: string) => {
+			if (data) {
+				resolve(JSON.parse(data));
+			} else {
+				reject(err);
+			}
+		});
+	});
+};
+
+const sendEvents = async (
 	res: express.Response,
 	type: string,
 	page: number,
 	size: number
 ) => {
-	fs.readFile('events.json', 'utf8', (_, data) => {
-		const input = JSON.parse(data);
+	const input = await readEvents();
+	page = page || 1;
+	size = size || input.events.length;
 
-		page = page || 1;
-		size = size || input.events.length;
+	if (type) {
+		const t = type.split(':');
 
-		if (type) {
-			const t = type.split(':');
-
-			if (t.some(e => !VALID_EVENT_TYPES.includes(e))) {
-				return res.status(400).send('incorrect type');
-			} else {
-				input.events = input.events.filter(
-					(event: Event) => t.indexOf(event.type) != -1
-				);
-			}
+		if (t.some(e => !VALID_EVENT_TYPES.includes(e))) {
+			return res.status(400).send('incorrect type');
+		} else {
+			input.events = input.events.filter(
+				(event: Event) => t.indexOf(event.type) != -1
+			);
 		}
+	}
 
-		const startIndex = (page - 1) * size;
-		const endIndex = Math.min(input.events.length, page * size);
-		let events = [];
+	const startIndex = (page - 1) * size;
+	const endIndex = Math.min(input.events.length, page * size);
+	let events = [];
 
-		for (let i = startIndex; i < endIndex; i++) {
-			events.push(input.events[i]);
-		}
-		input.events = events;
+	for (let i = startIndex; i < endIndex; i++) {
+		events.push(input.events[i]);
+	}
+	input.events = events;
 
-		return res.send(input);
-	});	
+	return res.send(input);
 };
 
 app.get('/api/events', (req, res) => {
