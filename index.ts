@@ -64,7 +64,7 @@ const sendEvents = async (
 			return res.status(400).send('incorrect type');
 		} else {
 			input.events = input.events.filter(
-				(event: Event) => t.indexOf(event.type) != -1
+				(event: Event) => t.includes(event.type)
 			);
 		}
 	}
