@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Response } from 'express';
 import fs from 'fs';
 const app = express();
 
@@ -10,7 +10,7 @@ const VALID_EVENT_TYPES = ['critical', 'info'];
 let time = new Date();
 let startTime = time.getTime();
 
-const format = (time: number) => {
+const format = (time: number): string => {
 	time = Math.floor(time / 1000);
 	const hh = Math.floor(time / 3600)
 		.toString()
@@ -22,7 +22,7 @@ const format = (time: number) => {
 	return `${hh}:${mm}:${ss}`;
 };
 
-app.get('/status', (_, res) => {
+app.get('/status', (_, res): void => {
 	const workTime = new Date().getTime() - startTime;
 	res.send(format(workTime));
 });
@@ -35,7 +35,7 @@ interface Events {
 	events: Array<Event>;
 }
 
-const readEvents = () => {
+const readEvents = (): Promise<Events> => {
 	return new Promise<Events>((resolve, reject) => {
 		fs.readFile('events.json', 'utf8', (err: Error, data: string) => {
 			if (data) {
@@ -52,7 +52,7 @@ const sendEvents = async (
 	type: string,
 	page: number,
 	size: number
-) => {
+) : Promise<void> => {
 	const input = await readEvents();
 	page = page || 1;
 	size = size || input.events.length;
@@ -61,7 +61,8 @@ const sendEvents = async (
 		const t = type.split(':');
 
 		if (t.some(e => !VALID_EVENT_TYPES.includes(e))) {
-			return res.status(400).send('incorrect type');
+			res.status(400).send('incorrect type');
+			return;
 		} else {
 			input.events = input.events.filter(
 				(event: Event) => t.includes(event.type)
@@ -78,23 +79,24 @@ const sendEvents = async (
 	}
 	input.events = events;
 
-	return res.send(input);
+	res.send(input);
+	return;
 };
 
-app.get('/api/events', (req, res) => {
+app.get('/api/events', (req, res): void => {
 	const type = req.query.type;
 	const page = req.query.page;
 	const size = req.query.size;
 	sendEvents(res, type, page, size);
 });
 
-app.post('/api/events', (req, res) => {
+app.post('/api/events', (req, res): void => {
 	const type = req.body.type;
 	const page = req.body.page;
 	const size = req.body.size;
 	sendEvents(res, type, page, size);
 });
 
-app.get('*', (_, res) => res.status(404).send('<h1>Page not found</h1>'));
+app.get('*', (_, res): Response => res.status(404).send('<h1>Page not found</h1>'));
 
 app.listen(8000);
